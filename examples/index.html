@@ -90,26 +90,13 @@
 		</style>
 	</head>
 	<body>
-		<script type="text/javascript">
-
-		  var _gaq = _gaq || [];
-		  _gaq.push(['_setAccount', 'UA-86951-15']);
-		  _gaq.push(['_trackPageview']);
-
-		  (function() {
-		    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
-		    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
-		    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
-		  })();
-
-		</script>
 
 		<div id="panel">
 			<div id="list">
 				<h1><a href="http://threejs.org">three.js</a> / examples</h1>
 			</div>
 		</div>
-		<iframe id="viewer"></iframe>
+		<iframe id="viewer" allowfullscreen></iframe>
 
 		<script>
 
@@ -132,6 +119,7 @@
 				"webgl_custom_attributes_particles",
 				"webgl_custom_attributes_particles2",
 				"webgl_custom_attributes_particles3",
+				"webgl_decals",
 				"webgl_effects_anaglyph",
 				"webgl_effects_oculusrift",
 				"webgl_effects_parallaxbarrier",
@@ -163,6 +151,7 @@
 				"webgl_geometry_terrain_raycast",
 				"webgl_geometry_tessellation",
 				"webgl_geometry_text",
+				"webgl_geometry_text2",
 				"webgl_gpgpu_birds",
 				"webgl_hdr",
 				"webgl_helpers",
@@ -170,6 +159,7 @@
 				"webgl_interactive_cubes",
 				"webgl_interactive_cubes_gpu",
 				"webgl_interactive_draggablecubes",
+				"webgl_interactive_lines",
 				"webgl_interactive_particles",
 				"webgl_interactive_raycasting_pointcloud",
 				"webgl_interactive_voxelpainter",
@@ -188,6 +178,7 @@
 				"webgl_loader_collada",
 				"webgl_loader_collada_keyframe",
 				"webgl_loader_collada_skinning",
+				"webgl_loader_collada_kinematics",
 				"webgl_loader_ctm",
 				"webgl_loader_ctm_materials",
 				"webgl_loader_gltf",
@@ -282,9 +273,6 @@
 				"webgl_trails",
 				"webgl_video_panorama_equirectangular"
 			],
-			"webgl3": [
-				"webgl3_performance"
-			],
 			"webgldeferred": [
 				"webgldeferred_animation",
 				"webgldeferred_arealights",
@@ -309,6 +297,7 @@
 				"misc_controls_transform",
 				"misc_lights_test",
 				"misc_lookat",
+				"misc_fps",
 				"misc_sound",
 				"misc_ubiquity_test",
 				"misc_ubiquity_test2",
@@ -331,7 +320,6 @@
 				"canvas_geometry_text",
 				"canvas_interactive_cubes",
 				"canvas_interactive_cubes_tween",
-				"canvas_interactive_lines",
 				"canvas_interactive_particles",
 				"canvas_interactive_voxelpainter",
 				"canvas_lights_pointlights",
@@ -357,6 +345,7 @@
 				"raytracing_sandbox"
 			],
 			"software": [
+				"software_geometry_earth",
 				"software_sandbox"
 			]
 		};
