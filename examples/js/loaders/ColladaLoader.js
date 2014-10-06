@@ -823,205 +823,214 @@ THREE.ColladaLoader = function () {
 
 	function createKinematics() {
 
-		if ( kinematicsModel && kinematicsModel.joints.length === 0 ) {
-			kinematics = undefined;
-			return;
-		}
+		kinematics = {};
 
-		var jointMap = {};
+		for ( var kModelName in kinematicsModels ) {
+			
+			var kinematicsModel = kinematicsModels[ kModelName ];
 
-		var _addToMap = function( jointIndex, parentVisualElement ) {
+			if ( kinematicsModel && kinematicsModel.joints.length === 0 ) {
+				kinematics[ kModelName ] = undefined;
+				return;
+			}
 
-			var parentVisualElementId = parentVisualElement.getAttribute( 'id' );
-			var colladaNode = visualScene.getChildById( parentVisualElementId, true );
-			var joint = kinematicsModel.joints[ jointIndex ];
+			var jointMap = {};
 
-			scene.traverse(function( node ) {
+			var _addToMap = function( jointIndex, parentVisualElement ) {
 
-				if ( node.id == parentVisualElementId ) {
+				var parentVisualElementId = parentVisualElement.getAttribute( 'id' );
+				var colladaNode = visualScene.getChildById( parentVisualElementId, true );
+				var joint = kinematicsModel.joints[ jointIndex ];
 
-					jointMap[ jointIndex ] = {
-						node: node,
-						transforms: colladaNode.transforms,
-						joint: joint,
-						position: joint.zeroPosition
-					};
+				scene.traverse(function( node ) {
 
-				}
+					if ( node.id == parentVisualElementId ) {
 
-			});
+						jointMap[ jointIndex ] = {
+							node: node,
+							transforms: colladaNode.transforms,
+							joint: joint,
+							position: joint.zeroPosition
+						};
 
-		};
+					}
 
-		kinematics = {
+				});
 
-			joints: kinematicsModel && kinematicsModel.joints,
+			};
 
-			getJointValue: function( jointIndex ) {
+			kinematics[ kModelName ] = {
 
-				var jointData = jointMap[ jointIndex ];
+				joints: kinematicsModel && kinematicsModel.joints,
 
-				if ( jointData ) {
+				getJointValue: function( jointIndex ) {
 
-					return jointData.position;
+					var jointData = jointMap[ jointIndex ];
 
-				} else {
+					if ( jointData ) {
 
-					console.log( 'getJointValue: joint ' + jointIndex + ' doesn\'t exist' );
-
-				}
-
-			},
-
-			setJointValue: function( jointIndex, value ) {
-
-				var jointData = jointMap[ jointIndex ];
-
-				if ( jointData ) {
-
-					var joint = jointData.joint;
-
-					if ( value > joint.limits.max || value < joint.limits.min ) {
-
-						console.log( 'setJointValue: joint ' + jointIndex + ' value ' + value + ' outside of limits (min: ' + joint.limits.min + ', max: ' + joint.limits.max + ')' );
-
-					} else if ( joint.static ) {
-
-						console.log( 'setJointValue: joint ' + jointIndex + ' is static' );
+						return jointData.position;
 
 					} else {
 
-						var threejsNode = jointData.node;
-						var axis = joint.axis;
-						var transforms = jointData.transforms;
+						console.log( 'getJointValue: joint ' + jointIndex + ' doesn\'t exist' );
 
-						var matrix = new THREE.Matrix4();
-
-						for (i = 0; i < transforms.length; i++ ) {
-
-							var transform = transforms[ i ];
-
-							// kinda ghetto joint detection
-							if ( transform.sid && transform.sid.indexOf( 'joint' + jointIndex ) !== -1 ) {
-
-								// apply actual joint value here
-								switch ( joint.type ) {
-
-									case 'revolute':
-
-										matrix.multiply( m1.makeRotationAxis( axis, THREE.Math.degToRad(value) ) );
-										break;
-
-									case 'prismatic':
-
-										matrix.multiply( m1.makeTranslation(axis.x * value, axis.y * value, axis.z * value ) );
-										break;
-
-									default:
-
-										console.warn( 'setJointValue: unknown joint type: ' + joint.type );
-										break;
-
-								}
-
-							} else {
-
-								var m1 = new THREE.Matrix4();
-
-								switch ( transform.type ) {
-
-									case 'matrix':
-
-										matrix.multiply( transform.obj );
-
-										break;
-
-									case 'translate':
-
-										matrix.multiply( m1.makeTranslation( transform.obj.x, transform.obj.y, transform.obj.z ) );
-
-										break;
-
-									case 'rotate':
-
-										matrix.multiply( m1.makeRotationAxis( transform.obj, transform.angle ) );
-
-										break;
-
-								}
-							}
-						}
-
-						// apply the matrix to the threejs node
-						var elementsFloat32Arr = matrix.elements;
-						var elements = Array.prototype.slice.call( elementsFloat32Arr );
-
-						var elementsRowMajor = [
-							elements[ 0 ],
-							elements[ 4 ],
-							elements[ 8 ],
-							elements[ 12 ],
-							elements[ 1 ],
-							elements[ 5 ],
-							elements[ 9 ],
-							elements[ 13 ],
-							elements[ 2 ],
-							elements[ 6 ],
-							elements[ 10 ],
-							elements[ 14 ],
-							elements[ 3 ],
-							elements[ 7 ],
-							elements[ 11 ],
-							elements[ 15 ]
-						];
-
-						threejsNode.matrix.set.apply( threejsNode.matrix, elementsRowMajor );
-						threejsNode.matrix.decompose( threejsNode.position, threejsNode.quaternion, threejsNode.scale );
 					}
 
-				} else {
+				},
 
-					console.log( 'setJointValue: joint ' + jointIndex + ' doesn\'t exist' );
+				setJointValue: function( jointIndex, value ) {
 
-				}
+					var jointData = jointMap[ jointIndex ];
 
-			}
+					if ( jointData ) {
 
-		};
+						var joint = jointData.joint;
 
-		var element = COLLADA.querySelector('scene instance_kinematics_scene');
+						if ( value > joint.limits.max || value < joint.limits.min ) {
 
-		if ( element ) {
+							console.log( 'setJointValue: joint ' + jointIndex + ' value ' + value + ' outside of limits (min: ' + joint.limits.min + ', max: ' + joint.limits.max + ')' );
 
-			for ( var i = 0; i < element.childNodes.length; i ++ ) {
+						} else if ( joint.static ) {
 
-				var child = element.childNodes[ i ];
+							console.log( 'setJointValue: joint ' + jointIndex + ' is static' );
 
-				if ( child.nodeType != 1 ) continue;
+						} else {
 
-				switch ( child.nodeName ) {
+							var threejsNode = jointData.node;
+							var axis = joint.axis;
+							var transforms = jointData.transforms;
 
-					case 'bind_joint_axis':
+							var matrix = new THREE.Matrix4();
 
-						var visualTarget = child.getAttribute( 'target' ).split( '/' ).pop();
-						var axis = child.querySelector('axis param').textContent;
-						var jointIndex = parseInt( axis.split( 'joint' ).pop().split( '.' )[0] );
-						var visualTargetElement = COLLADA.querySelector( '[sid="' + visualTarget + '"]' );
+							for (i = 0; i < transforms.length; i++ ) {
 
-						if ( visualTargetElement ) {
-							var parentVisualElement = visualTargetElement.parentElement;
-							_addToMap(jointIndex, parentVisualElement);
+								var transform = transforms[ i ];
+
+								// kinda ghetto joint detection
+								if ( transform.sid && transform.sid.indexOf( 'joint' + jointIndex ) !== -1 ) {
+
+									// apply actual joint value here
+									switch ( joint.type ) {
+
+										case 'revolute':
+
+											matrix.multiply( m1.makeRotationAxis( axis, THREE.Math.degToRad(value) ) );
+											break;
+
+										case 'prismatic':
+
+											matrix.multiply( m1.makeTranslation(axis.x * value, axis.y * value, axis.z * value ) );
+											break;
+
+										default:
+
+											console.warn( 'setJointValue: unknown joint type: ' + joint.type );
+											break;
+
+									}
+
+								} else {
+
+									var m1 = new THREE.Matrix4();
+
+									switch ( transform.type ) {
+
+										case 'matrix':
+
+											matrix.multiply( transform.obj );
+
+											break;
+
+										case 'translate':
+
+											matrix.multiply( m1.makeTranslation( transform.obj.x, transform.obj.y, transform.obj.z ) );
+
+											break;
+
+										case 'rotate':
+
+											matrix.multiply( m1.makeRotationAxis( transform.obj, transform.angle ) );
+
+											break;
+
+									}
+								}
+							}
+
+							// apply the matrix to the threejs node
+							var elementsFloat32Arr = matrix.elements;
+							var elements = Array.prototype.slice.call( elementsFloat32Arr );
+
+							var elementsRowMajor = [
+								elements[ 0 ],
+								elements[ 4 ],
+								elements[ 8 ],
+								elements[ 12 ],
+								elements[ 1 ],
+								elements[ 5 ],
+								elements[ 9 ],
+								elements[ 13 ],
+								elements[ 2 ],
+								elements[ 6 ],
+								elements[ 10 ],
+								elements[ 14 ],
+								elements[ 3 ],
+								elements[ 7 ],
+								elements[ 11 ],
+								elements[ 15 ]
+							];
+
+							threejsNode.matrix.set.apply( threejsNode.matrix, elementsRowMajor );
+							threejsNode.matrix.decompose( threejsNode.position, threejsNode.quaternion, threejsNode.scale );
 						}
 
-						break;
+					} else {
 
-					default:
+						console.log( 'setJointValue: joint ' + jointIndex + ' doesn\'t exist' );
 
-						break;
+					}
+
+				}
+
+			};
+
+			var element = COLLADA.querySelector('scene instance_kinematics_scene');
+
+			if ( element ) {
+
+				for ( var i = 0; i < element.childNodes.length; i ++ ) {
+
+					var child = element.childNodes[ i ];
+
+					if ( child.nodeType != 1 ) continue;
+
+					switch ( child.nodeName ) {
+
+						case 'bind_joint_axis':
+
+							var visualTarget = child.getAttribute( 'target' ).split( '/' ).pop();
+							var axis = child.querySelector('axis param').textContent;
+							var jointIndex = parseInt( axis.split( 'joint' ).pop().split( '.' )[0] );
+							var visualTargetElement = COLLADA.querySelector( '[sid="' + visualTarget + '"]' );
+
+							if ( visualTargetElement ) {
+								var parentVisualElement = visualTargetElement.parentElement;
+								_addToMap(jointIndex, parentVisualElement);
+							}
+
+							break;
+
+						default:
+
+							break;
+
+					}
 
 				}
 
 			}
+
 		}
 
 	};
