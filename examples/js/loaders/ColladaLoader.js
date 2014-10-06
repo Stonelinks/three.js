@@ -830,12 +830,14 @@ THREE.ColladaLoader = function () {
 		kinematics = {};
 
 		for ( var kModelName in kinematicsModels ) {
-			
+
 			var kinematicsModel = kinematicsModels[ kModelName ];
 
-			if ( kinematicsModel && kinematicsModel.joints.length === 0 ) {
-				kinematics[ kModelName ] = undefined;
-				return;
+			if ( kinematicsModel == undefined || kinematicsModel.joints.length === 0 || kinematicsModel.links.length === 0 ) {
+
+				kinematics[ kinematicsModel.name ] = undefined;
+				continue;
+
 			}
 
 			var jointMap = {};
@@ -859,11 +861,15 @@ THREE.ColladaLoader = function () {
 
 					}
 
-				});
+				} );
 
 			};
 
-			kinematics[ kModelName ] = {
+			kinematics[ kinematicsModel.name ] = {
+
+				name: kinematicsModel.name,
+
+				id: kModelName,
 
 				joints: kinematicsModel && kinematicsModel.joints,
 
