@@ -121,7 +121,7 @@ THREE.ColladaLoader = function () {
 
 	}
 
-	function parse( doc, callBack, url ) {
+	function parse ( doc, callBack, url ) {
 
 		COLLADA = doc;
 		callBack = callBack || readyCallbackFunc;
@@ -191,7 +191,9 @@ THREE.ColladaLoader = function () {
 				visualScene: visualScene,
 				scene: visualScene,
 				kinematicsModels: kinematicsModels,
-				kinematicsModel: kinematicsModel
+				kinematicsModel: kinematicsModel,
+				getConvertedMat4: getConvertedMat4,
+				getConvertedVec3: getConvertedVec3
 			}
 
 		};
