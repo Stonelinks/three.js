@@ -147,9 +147,6 @@ THREE.ColladaLoader = function () {
 		visualScenes = parseLib( "library_visual_scenes visual_scene", VisualScene, "visual_scene" );
 		kinematicsModels = parseLib( "library_kinematics_models kinematics_model", KinematicsModel, "kinematics_model" );
 
-		morphs = [];
-		skins = [];
-
 		visualScene = parseScene();
 		scene = new THREE.Scene();
 		rootObject = new THREE.Object3D();
@@ -159,15 +156,18 @@ THREE.ColladaLoader = function () {
 			rootObject.add( createSceneGraph( visualScene.nodes[ i ] ) );
 
 		}
-    scene.add( rootObject );
+		scene.add( rootObject );
 
 		// unit conversion
 		scene.scale.multiplyScalar( colladaUnit );
 
+		morphs = [];
+		skins = [];
 		createAnimations();
 
 		kinematicsModel = parseKinematicsModel();
-		createKinematics();
+		kinematics = {};
+		createKinematics( kinematics, scene );
 
 		var result = {
 
@@ -177,6 +177,7 @@ THREE.ColladaLoader = function () {
 			animations: animData,
 			kinematics: kinematics,
 			rootObject: rootObject,
+			clone: clone,
 			dae: {
 				images: images,
 				materials: materials,
@@ -200,6 +201,34 @@ THREE.ColladaLoader = function () {
 			callBack( result );
 
 		}
+
+		return result;
+
+	}
+
+	function clone () {
+
+		var _scene = new THREE.Scene();
+		var _rootObject = new THREE.Object3D();
+
+		for ( var i = 0; i < visualScene.nodes.length; i ++ ) {
+
+			_rootObject.add( createSceneGraph( visualScene.nodes[ i ] ) );
+
+		}
+		_scene.add( _rootObject );
+
+		// unit conversion
+		_scene.scale.multiplyScalar( colladaUnit );
+
+		var _kinematics = {}
+		createKinematics( _kinematics, _scene );
+
+		var result = {
+			scene: _scene,
+			kinematics: _kinematics,
+			rootObject: _rootObject
+		};
 
 		return result;
 
@@ -825,57 +854,95 @@ THREE.ColladaLoader = function () {
 
 	};
 
-	function createKinematics() {
-
-		kinematics = {};
+	function createKinematics ( kinematics, scene ) {
 
 		for ( var kModelName in kinematicsModels ) {
 
-			var kinematicsModel = kinematicsModels[ kModelName ];
+			(function() {
 
-			if ( kinematicsModel == undefined || kinematicsModel.joints.length === 0 || kinematicsModel.links.length === 0 ) {
+				var kinematicsModel = kinematicsModels[ kModelName ];
 
-				kinematics[ kinematicsModel.name ] = undefined;
-				continue;
+				if ( kinematicsModel == undefined || kinematicsModel.joints.length === 0 || kinematicsModel.links.length === 0 ) {
 
-			}
+					kinematics[ kinematicsModel.name ] = undefined;
+					return;
 
-			var jointMap = {};
+				}
 
-			var _addToMap = function( jointIndex, parentVisualElement ) {
+				var _jointMap = {};
 
-				var parentVisualElementId = parentVisualElement.getAttribute( 'id' );
-				var colladaNode = visualScene.getChildById( parentVisualElementId, true );
-				var joint = kinematicsModel.joints[ jointIndex ];
+				var _addToMap = function( jointIndex, parentVisualElement ) {
 
-				scene.traverse(function( node ) {
+					var parentVisualElementId = parentVisualElement.getAttribute( 'id' );
+					var colladaNode = visualScene.getChildById( parentVisualElementId, true );
+					var joint = kinematicsModel.joints[ jointIndex ];
 
-					if ( node.id == parentVisualElementId ) {
+					var node = scene.getObjectById( parentVisualElementId, true );
 
-						jointMap[ jointIndex ] = {
+					if ( node ) {
+
+						_jointMap[ jointIndex ] = {
 							node: node,
 							transforms: colladaNode.transforms,
 							joint: joint,
 							position: joint.zeroPosition
-						};
+						}
 
 					}
 
-				} );
+				};
 
-			};
+				var element = COLLADA.querySelector('scene instance_kinematics_scene');
 
-			kinematics[ kinematicsModel.name ] = {
+				if ( element ) {
 
-				name: kinematicsModel.name,
+					for ( var i = 0; i < element.childNodes.length; i ++ ) {
 
-				id: kModelName,
+						var child = element.childNodes[ i ];
 
-				joints: kinematicsModel && kinematicsModel.joints,
+						if ( child.nodeType != 1 ) continue;
 
-				getJointValue: function( jointIndex ) {
+						switch ( child.nodeName ) {
 
-					var jointData = jointMap[ jointIndex ];
+							case 'bind_joint_axis':
+
+								var visualTarget = child.getAttribute( 'target' ).split( '/' ).pop();
+								var axis = child.querySelector('axis param').textContent;
+								var jointIndex = parseInt( axis.split( 'joint' ).pop().split( '.' )[0] );
+								var visualTargetElement = COLLADA.querySelector( '[sid="' + visualTarget + '"]' );
+
+								if ( visualTargetElement ) {
+									var parentVisualElement = visualTargetElement.parentElement;
+									_addToMap(jointIndex, parentVisualElement);
+								}
+
+								break;
+
+							default:
+
+								break;
+
+						}
+
+					}
+
+				}
+
+				kinematics[ kinematicsModel.name ] = {
+
+					name: kinematicsModel.name,
+
+					id: kModelName,
+
+					_jointMap: _jointMap,
+
+					joints: kinematicsModel && kinematicsModel.joints
+
+				};
+
+				kinematics[ kinematicsModel.name ].getJointValue = function( jointIndex ) {
+
+					var jointData = kinematics[ kinematicsModel.name ]._jointMap[ jointIndex ];
 
 					if ( jointData ) {
 
@@ -887,11 +954,11 @@ THREE.ColladaLoader = function () {
 
 					}
 
-				},
+				};
 
-				setJointValue: function( jointIndex, value ) {
+				kinematics[ kinematicsModel.name ].setJointValue = function( jointIndex, value ) {
 
-					var jointData = jointMap[ jointIndex ];
+					var jointData = kinematics[ kinematicsModel.name ]._jointMap[ jointIndex ];
 
 					if ( jointData ) {
 
@@ -913,7 +980,7 @@ THREE.ColladaLoader = function () {
 
 							var matrix = new THREE.Matrix4();
 
-							for (i = 0; i < transforms.length; i++ ) {
+							for ( i = 0; i < transforms.length; i++ ) {
 
 								var transform = transforms[ i ];
 
@@ -949,23 +1016,22 @@ THREE.ColladaLoader = function () {
 										case 'matrix':
 
 											matrix.multiply( transform.obj );
-
 											break;
 
 										case 'translate':
 
 											matrix.multiply( m1.makeTranslation( transform.obj.x, transform.obj.y, transform.obj.z ) );
-
 											break;
 
 										case 'rotate':
 
 											matrix.multiply( m1.makeRotationAxis( transform.obj, transform.angle ) );
-
 											break;
 
 									}
+
 								}
+
 							}
 
 							// apply the matrix to the threejs node
@@ -973,22 +1039,10 @@ THREE.ColladaLoader = function () {
 							var elements = Array.prototype.slice.call( elementsFloat32Arr );
 
 							var elementsRowMajor = [
-								elements[ 0 ],
-								elements[ 4 ],
-								elements[ 8 ],
-								elements[ 12 ],
-								elements[ 1 ],
-								elements[ 5 ],
-								elements[ 9 ],
-								elements[ 13 ],
-								elements[ 2 ],
-								elements[ 6 ],
-								elements[ 10 ],
-								elements[ 14 ],
-								elements[ 3 ],
-								elements[ 7 ],
-								elements[ 11 ],
-								elements[ 15 ]
+								elements[ 0 ], elements[ 4 ], elements[ 8 ], elements[ 12 ],
+								elements[ 1 ], elements[ 5 ], elements[ 9 ], elements[ 13 ],
+								elements[ 2 ], elements[ 6 ], elements[ 10 ], elements[ 14 ],
+								elements[ 3 ], elements[ 7 ], elements[ 11 ], elements[ 15 ]
 							];
 
 							threejsNode.matrix.set.apply( threejsNode.matrix, elementsRowMajor );
@@ -1001,45 +1055,9 @@ THREE.ColladaLoader = function () {
 
 					}
 
-				}
+				};
 
-			};
-
-			var element = COLLADA.querySelector('scene instance_kinematics_scene');
-
-			if ( element ) {
-
-				for ( var i = 0; i < element.childNodes.length; i ++ ) {
-
-					var child = element.childNodes[ i ];
-
-					if ( child.nodeType != 1 ) continue;
-
-					switch ( child.nodeName ) {
-
-						case 'bind_joint_axis':
-
-							var visualTarget = child.getAttribute( 'target' ).split( '/' ).pop();
-							var axis = child.querySelector('axis param').textContent;
-							var jointIndex = parseInt( axis.split( 'joint' ).pop().split( '.' )[0] );
-							var visualTargetElement = COLLADA.querySelector( '[sid="' + visualTarget + '"]' );
-
-							if ( visualTargetElement ) {
-								var parentVisualElement = visualTargetElement.parentElement;
-								_addToMap(jointIndex, parentVisualElement);
-							}
-
-							break;
-
-						default:
-
-							break;
-
-					}
-
-				}
-
-			}
+			} )()
 
 		}
 
@@ -4901,7 +4919,7 @@ THREE.ColladaLoader = function () {
 		};
 
 		var jointTypes = ['prismatic', 'revolute'];
-		for (var i = 0; i < jointTypes.length; i++ ) {
+		for ( var i = 0; i < jointTypes.length; i++ ) {
 
 			var type = jointTypes[ i ];
 
@@ -4943,7 +4961,7 @@ THREE.ColladaLoader = function () {
 		this.transforms = [];
 		this.attachments = [];
 
-		for (var i = 0; i < element.childNodes.length; i++ ) {
+		for ( var i = 0; i < element.childNodes.length; i++ ) {
 
 			var child = element.childNodes[ i ];
 			if ( child.nodeType != 1 ) continue;
@@ -4986,7 +5004,7 @@ THREE.ColladaLoader = function () {
 		this.joint = element.getAttribute('joint').split('/').pop();
 		this.links = [];
 
-		for (var i = 0; i < element.childNodes.length; i++ ) {
+		for ( var i = 0; i < element.childNodes.length; i++ ) {
 
 			var child = element.childNodes[ i ];
 			if ( child.nodeType != 1 ) continue;
